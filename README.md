@@ -1,19 +1,21 @@
 
-# Tree Water Backend
+# Tree Water Backend (Production Ready)
 
-A Flask API to estimate water consumption for various tree species in arid regions.
+Flask-based API for estimating water needs for tree species in Saudi Arabia.
 
 ## Endpoints
 
-- `/` – Simple HTML form to calculate water usage
-- `/trees` – List available tree species
-- `/calculate` – POST endpoint to calculate water use (JSON or HTML form)
+- `/` – Simple HTML form
+- `/trees` – List all tree species
+- `/calculate` – POST to calculate water consumption
 
-## Setup
-
+## Local Run
 ```bash
 pip install -r requirements.txt
 python app.py
 ```
 
-Then visit http://localhost:5000
+## Production (Gunicorn)
+```bash
+gunicorn -b 0.0.0.0:10000 app:app
+```
