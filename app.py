@@ -1,66 +1,55 @@
-
 from flask import Flask, request, jsonify
-import pandas as pd
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
-soil_loss_modifier = {
-    "Sandy": 1500,
-    "Loamy": 500,
-    "Clay": 300
+TREE_DATA = {
+    "Acacia": {"ET0": 1000, "Kc": 0.7, "Aa": 12},
+    "Sidr": {"ET0": 1000, "Kc": 0.9, "Aa": 14},
+    "Tamarix": {"ET0": 1000, "Kc": 0.6, "Aa": 10},
+    "Ghaf": {"ET0": 1000, "Kc": 0.5, "Aa": 8}
 }
 
-tree_data = pd.DataFrame({
-    "Tree_Species": [
-        "Acacia", "Sidr", "Tamarix", "Ghaf",
-        "Moringa", "Neem", "Date Palm", "Olive", "Eucalyptus", "Jujube"
-    ],
-    "ET0_mm_per_year": [
-        1800, 1600, 1700, 1500,
-        1700, 1750, 1600, 1500, 1800, 1550
-    ],
-    "Kc": [
-        0.45, 0.50, 0.55, 0.30,
-        0.60, 0.50, 0.75, 0.65, 0.70, 0.60
-    ],
-    "Canopy_Area_m2": [
-        8, 12, 6, 10,
-        5, 7, 15, 8, 20, 6
-    ],
-    "Irrigation_Efficiency": [
-        0.9, 0.85, 0.8, 0.95,
-        0.9, 0.85, 0.75, 0.9, 0.8, 0.88
-    ],
-    "Soil_Type": [
-        "Sandy", "Loamy", "Clay", "Sandy",
-        "Loamy", "Sandy", "Loamy", "Clay", "Sandy", "Loamy"
-    ]
-})
+SOIL_MULTIPLIERS = {
+    "Sandy": 1.2,
+    "Loamy": 1.0,
+    "Clay": 0.85
+}
 
-@app.route('/calculate', methods=['POST'])
+@app.route("/")
+def home():
+    return "<h1>Tree Water Backend API</h1>"
+
+@app.route("/trees")
+def trees():
+    return jsonify(list(TREE_DATA.keys()))
+
+@app.route("/calculate", methods=["POST"])
 def calculate():
     data = request.get_json()
     species = data.get("Tree_Species")
     count = int(data.get("Tree_Count", 1))
+    soil = data.get("Soil_Type", "Loamy")
+    zone = data.get("Zone", "Default")
 
-    row = tree_data[tree_data["Tree_Species"] == species]
+    if species not in TREE_DATA:
+        return jsonify({"error": "Unknown tree species"}), 400
 
-    if row.empty:
-        return jsonify({"error": "Tree species not found"}), 404
+    soil_factor = SOIL_MULTIPLIERS.get(soil, 1.0)
+    tree = TREE_DATA[species]
 
-    row = row.iloc[0]
-    ET0 = row.ET0_mm_per_year
-    Kc = row.Kc
-    A = row.Canopy_Area_m2
-    IE = row.Irrigation_Efficiency
-    Ls = soil_loss_modifier.get(row.Soil_Type, 1000)
-
-    W_c = ((ET0 * Kc * A) / IE) + Ls
-    total = W_c * count
+    annual_liters = tree["ET0"] * tree["Kc"] * tree["Aa"] * soil_factor
+    total_liters = annual_liters * count
 
     return jsonify({
         "Tree_Species": species,
         "Tree_Count": count,
-        "Annual_Water_Consumption_Liters": round(W_c, 2),
-        "Total_Consumption_Liters": round(total, 2)
+        "Soil_Type": soil,
+        "Zone": zone,
+        "Annual_Water_Consumption_Liters": round(annual_liters, 2),
+        "Total_Consumption_Liters": round(total_liters, 2)
     })
+
+if __name__ == '__main__':
+    app.run(debug=True)
