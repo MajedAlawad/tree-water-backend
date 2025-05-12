@@ -37,26 +37,12 @@ tree_data = pd.DataFrame({
     ]
 })
 
-@app.route('/')
-def form():
-    return '''
-    <h2>Tree Water Consumption Calculator</h2>
-    <form action="/calculate" method="post">
-        <label for="Tree_Species">Select Tree Species:</label>
-        <select name="Tree_Species">
-            {options}
-        </select>
-        <button type="submit">Calculate</button>
-    </form>
-    '''.format(options=''.join(f'<option value="{tree}">{tree}</option>' for tree in tree_data["Tree_Species"]))
-
-@app.route('/trees', methods=['GET'])
-def get_trees():
-    return jsonify(tree_data["Tree_Species"].tolist())
-
 @app.route('/calculate', methods=['POST'])
 def calculate():
-    species = request.form.get("Tree_Species") or request.json.get("Tree_Species")
+    data = request.get_json()
+    species = data.get("Tree_Species")
+    count = int(data.get("Tree_Count", 1))
+
     row = tree_data[tree_data["Tree_Species"] == species]
 
     if row.empty:
@@ -70,11 +56,11 @@ def calculate():
     Ls = soil_loss_modifier.get(row.Soil_Type, 1000)
 
     W_c = ((ET0 * Kc * A) / IE) + Ls
+    total = W_c * count
 
     return jsonify({
         "Tree_Species": species,
-        "Annual_Water_Consumption_Liters": round(W_c, 2)
+        "Tree_Count": count,
+        "Annual_Water_Consumption_Liters": round(W_c, 2),
+        "Total_Consumption_Liters": round(total, 2)
     })
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
